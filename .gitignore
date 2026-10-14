@@ -1,0 +1,10 @@
+data/
+output/
+logs/
+tmp/
+*.sif
+*.fa
+*.fasta
+*.fai
+*.bam
+*.gz
