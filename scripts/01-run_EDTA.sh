@@ -4,9 +4,9 @@
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=20
 #SBATCH --mem=96G
-#SBATCH --time=6-00:00:00
+#SBATCH --time=4-00:00:00
 #SBATCH --account=class-sbl-30004-ws-2026
-#SBATCH --reservation=class-sbl-30004-2026-10-14
+#SBATCH --reservation=class-sbl-30004-2026-10-15
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
 
@@ -48,5 +48,6 @@ apptainer exec -C \
     --sensitive 1 \
     --cds "$CDS" \
     --anno 1 \
+    --overwrite 0 \
     --wholeelement 1 \
     --threads "$SLURM_CPUS_PER_TASK"

@@ -9,10 +9,12 @@ flye assembly was copied from the other class (assembly) into the data/assembly/
 01 script adjusted, directory put my own and changed the path, then
 sbatch scripts/01-...
 
+run time:
+
 waited until the two files as intermediate steps were finished
 (checked with ls -lh assembly.fasta.mod.EDTA.raw/*.intact.raw.* )
 
 then ran script 02, only adjusted the paths and ran with
 sbatch scripts/02-...
 
-
+run time : ca. 30s
