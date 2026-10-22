@@ -2,6 +2,8 @@ data/
 output/
 logs/
 tmp/
+control_files/
+results/
 *.sif
 *.fa
 *.fasta
