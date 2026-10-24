@@ -91,8 +91,10 @@ apptainer exec -C --bind "$WORKDIR" --bind "$COURSEDIR" --pwd "$OUTDIR" "$COURSE
 guiding questions:
 
 - Are there differences in the number of full length LTR-RTs between the clades?
+#TODO
 
 - Are there any clades with High percent identity (e.g., 99-100%) or relatively younger insertions and Low percent identity (e.g., 80-90%) or relatively older insertions?
+#TODO
 
 clade level, profile of which clade in my accession is more recent.
 Copia has many recent insertions, within there mostly Ale and ivana were very recent. 
@@ -156,6 +158,8 @@ contigs 230, 183, 126, 226, 97 for Gypsy.
 - Do Gypsy, Copia and TIR elements show similar genomic distributions, or are there distinct patterns?
 Very similar patterns only in contig 226 there is not, Gypsy shows distinctly higher density of elements.
 
+#TODO what does it mean?
+
 21.10. done to have results in week 3:
 ## Run MAKER
 script 05-run_maker.sh copied from the COURSEDIR ,
@@ -185,7 +189,7 @@ Guiding questions:
 an estimate of the number of Copia and Gypsy elements in each clade?
 - What are the most abundant clades in
 your genome?
-
+#TODO
 The idea is a join in two steps.
 
 Take the library ID from the first column of each cls.tsv, which is the header, e.g. TE_00000123#LTR/Copia. Strip everything from # onward to get TE_00000123, and pair it with its clade.
@@ -200,8 +204,6 @@ The totals per clade are your estimate of the number of Copia and Gypsy elements
 ### 4.1 Parse RepeatMasker Outputs:
 - Use the Perl script parseRM.pl (available at https://github.com/4ureliek/Parsing-RepeatMasker- Outputs) to process the raw alignment outputs from RepeatMasker.
 - This command plots the divergence reported in the .out file. It does not apply CpG correction or convert divergence into insertion ages.
-
-
 
 ### 4.2 Binning TE Divergence Data:
 Perform the following steps for the Repeatmasker file $genome.mod.EDTA.RM.out:
@@ -265,5 +267,14 @@ Date the divergence of the annotated TEs from their representative sequence usin
 
 ### Guiding questions:
 - Which superfamilies show peaks at low and high sequence divergence?
+
+**Low divergence peak:** MITE/DTM at about 1-2%, with some Copia and Gypsy at 0-3%.
+**Broad middle peak:** Gypsy, at about 5-12% divergence, which is roughly 3-7 Myr once converted.
+**Old tail (15-35%):** a low, flat mix of Copia, Gypsy and DNA/DTC (CACTA, green), reaching about 0.37.
+
 - Are there differences in TE dynamics between the accessions studied in the group?
+#TODO
+
+
 - How do the TE dynamics differ between Copia and Gypsy elements?
+**Copia vs. Gypsy:** Gypsy has one large, older burst. Copia is a thinner layer that is more spread out, with a small recent bump. Check this against the age plot once it’s fixed.
