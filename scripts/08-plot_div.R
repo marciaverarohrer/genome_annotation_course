@@ -6,7 +6,7 @@ library(data.table)
 
 # get data from parameter
 
-data <- "assembly.fasta.mod.EDTA.anno/assembly.fasta.mod.out.landscape.Div.Rname.tab"
+data <- "output/EDTA/assembly.fasta.mod.EDTA.anno/assembly.fasta.mod.EDTA.RM.nonzero.out.landscape.Div.Rname.tab"
 
 rep_table <- fread(data, header = FALSE, sep = "\t")
 rep_table %>% head()
@@ -50,7 +50,7 @@ ggplot(rep_table.m, aes(fill = fam, x = distance, weight = value / 1000000)) +
   ylab("Sequence (Mbp)") +
   theme(axis.text.x = element_text(angle = 90, vjust = 1, size = 9, hjust = 1), plot.title = element_text(hjust = 0.5))
 
-ggsave(filename = "plots/output.pdf", width = 10, height = 5, useDingbats = F)
+ggsave(filename = "plots/TE_landscape.pdf", width = 10, height = 5, useDingbats = F)
 
 
 
