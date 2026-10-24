@@ -43,17 +43,17 @@ rep_table.m$distance <- as.numeric(rep_table.m$variable) / 100 # as it is percen
 rep_table.m <- rep_table.m %>% filter(fam != "DNA/Helitron")
 
 r <- 8.22e-9
-rep_table.m$age_myr <- as.numeric(as.character(rep_table.m$distance)) / 100 / (2 * r) / 1e6
+w <- 0.01 / (2 * r) / 1e6    # one 1% bin in Myr (about 0.61)
+rep_table.m$age_myr <- as.numeric(as.character(rep_table.m$distance)) / (2 * r) / 1e6
 
-ggplot(rep_table.m, aes(fill = fam, x = age_myr, weight = value / 1000000)) +
-  geom_histogram(binwidth = 0.61, boundary = 0) +
+ggplot(rep_table.m, aes(fill = fam, x = age_myr, y = value / 1000000)) +
+  geom_col(width = w) +
   cowplot::theme_cowplot() +
   scale_fill_brewer(palette = "Paired") +
   xlab("Estimated insertion age (Myr)") +
   ylab("Sequence (Mbp)")
 
 ggsave(filename = "plots/TE_landscape_age.pdf", width = 10, height = 5, useDingbats = F)
-
 # Why is it important to have this plot in Mbp instead of counts?
 # Hint:
 # Consider a scenario where there is a lot of small fragments of TEs due to nested insertions and deletions.

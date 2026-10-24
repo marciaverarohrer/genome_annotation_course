@@ -152,3 +152,13 @@ global_plot <- plot_data %>%
 
 ggsave("plots/02_LTR_Copia_Gypsy_global.png", global_plot, width = 10, height = 5, dpi = 300)
 ggsave("plots/02_LTR_Copia_Gypsy_global.pdf", global_plot, width = 10, height = 5)
+
+
+# added block of code to determine the age of the insertions (by percent identity)
+
+clade_summary <- plot_data %>% group_by(Clade) %>%
+  summarise(n = n(), median_id = median(Identity), min_id = min(Identity),
+            pct_above_99 = mean(Identity >= 0.99) * 100) %>%
+  arrange(desc(median_id))
+print(clade_summary, n = Inf)
+write.csv(clade_summary, "clade_identity_summary.csv", row.names = FALSE)
