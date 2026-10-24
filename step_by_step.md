@@ -195,5 +195,75 @@ The totals per clade are your estimate of the number of Copia and Gypsy elements
 
 ## 4. Dynamics of TEs
 
-### Dating of TEs / Estimation of Insertion Age
+### Dating of TEs / Estimation of Insertion Age Workflow
 
+### 4.1 Parse RepeatMasker Outputs:
+- Use the Perl script parseRM.pl (available at https://github.com/4ureliek/Parsing-RepeatMasker- Outputs) to process the raw alignment outputs from RepeatMasker.
+- This command plots the divergence reported in the .out file. It does not apply CpG correction or convert divergence into insertion ages.
+
+
+
+### 4.2 Binning TE Divergence Data:
+Perform the following steps for the Repeatmasker file $genome.mod.EDTA.RM.out:
+- First, remove the lines with divergence values equal to 0%, as these represent perfect matches to the reference sequence, and may reflect the same library copy matching itself.
+
+- The input file $genome.mod.EDTA.RM.out is found the EDTA output directory, typically located at $genome.mod.EDTA.anno.
+important to run the script from the .anno folder:
+> cd /data/users/mrohrer/genome_annotation_course/output/EDTA/assembly.fasta.mod.EDTA.anno
+
+> awk 'NR == 1 || $2 != 0' assembly.fasta.mod.EDTA.RM.out > assembly.fasta.mod.EDTA.RM.nonzero.out
+
+- started an interactive mode:
+> srun --partition=pibu_el8 --cpus-per-task=2 --mem=4G --time=00:30:00 --pty bash
+and loaded the usual variables with
+> source ~/course_env.sh
+
+- Then, ran the following command to bin the divergence values into 1% increments and generate a summary table of TE abundance per superfamily:
+> apptainer exec -C --bind "$WORKDIR" --bind "$COURSEDIR" \ "$COURSEDIR/containers/Annotation_analysis_R4.4.sif" \ perl "$COURSEDIR/scripts/05-parseRM.pl" -i "$genome.mod.EDTA.RM.nonzero.out" -l 50,1 -v
+
+parseRM.pl reads the .out file and counts how much sequence falls into each divergence bin per TE class and family.
+-i is the input .out file.
+-l 50,1 asks for the landscape output, maximum divergence 50% with 1% bins.
+-v is verbose.
+
+Tables are written next to the input file, so it was run from the .anno folder.
+
+...output from the terminal after running:
+        ..printing parsed data..
+          -> ./assembly.fasta.mod.EDTA.RM.nonzero.out.landscape.Div.Rname.tab
+          -> ./assembly.fasta.mod.EDTA.RM.nonzero.out.landscape.Div.Rclass.tab
+          -> ./assembly.fasta.mod.EDTA.RM.nonzero.out.landscape.Div.Rfam.tab
+          .. done
+ --- Script done
+> ls -lt
+showed the three outputs in the .anno folder.
+
+the script was copied as 07-parseRM.pl into the scripts folder, even though it was ran directly from the course directory.
+
+### 4.3 Generate a TE Landscape Plot:
+- Copied the script $COURSEDIR/scripts/06-plot_div.R into own script folder, renamed as 08-plot_div.R.
+- Input path was re-edited and Plots/ output directory created before running it with
+
+interactive node, load the variables, then ran the script:
+> srun --partition=pibu_el8 --cpus-per-task=2 --mem=4G --time=00:30:00 --pty bash
+> source ~/course_env.sh
+> apptainer exec -C --bind "$WORKDIR" --pwd "$WORKDIR" "$COURSEDIR/containers/Annotation_analysis_R4.4.sif" Rscript --vanilla "$WORKDIR/scripts/08-plot_div.R"
+
+That way, a landscape graph, showing TE divergence and abundance for each superfamily was created.
+
+
+### 4.4 Dating TEs Using Substitution Rates:
+
+adjusted script with last command, into 08a, again interactive node, same as above:
+> srun --partition=pibu_el8 --cpus-per-task=2 --mem=4G --time=00:30:00 --pty bash
+> source ~/course_env.sh
+> apptainer exec -C --bind "$WORKDIR" --pwd "$WORKDIR" "$COURSEDIR/containers/Annotation_analysis_R4.4.sif" Rscript --vanilla "$WORKDIR/scripts/08-plot_div.R"
+
+Date the divergence of the annotated TEs from their representative sequence using the synonymous substitution rate for Brassicaceae species. This rate is estimated at 8.22 × 10^−9 substitutions per synonymous site per year (Kagale et al., 2014). The insertion time (T) can be calculated using T = K/2r, where K is the sequence divergence, and r is the substitution rate. For RepeatMasker comparisons, this calculation provides an approximate sequence divergence time. For intact LTR retrotransposons, the same formula can be used to estimate insertion age from the divergence between their two LTRs.
+
+
+
+### Guiding questions:
+- Which superfamilies show peaks at low and high sequence divergence?
+- Are there differences in TE dynamics between the accessions studied in the group?
+- How do the TE dynamics differ between Copia and Gypsy elements?
