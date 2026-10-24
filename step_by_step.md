@@ -91,22 +91,22 @@ apptainer exec -C --bind "$WORKDIR" --bind "$COURSEDIR" --pwd "$OUTDIR" "$COURSE
 guiding questions:
 
 - Are there differences in the number of full length LTR-RTs between the clades?
-#TODO
+
+From the summary_R_script.txt:
+The intact set has 290 elements,
+Copia 164, Gypsy 113, and 13 with no superfamily (`NA`). By clade:
+**Copia:** Ale 76, Ivana 38, Bianca 15, Angela 2, Alesia 1, SIRE 5, TAR 2. Ale is by far the biggest, accounting for about half of all Copia.
+**Gypsy:** Athila 57, Tork 25 (this one is Copia in rexdb-plant, so see below), Reina 17, Retand 16, Tekay 11, CRM 10.
+**Unknown/NA:** 2 unknown, 13 NA.
+Yes, the numbers differ a lot!
 
 - Are there any clades with High percent identity (e.g., 99-100%) or relatively younger insertions and Low percent identity (e.g., 80-90%) or relatively older insertions?
-#TODO
+
+To answer the second question, a code block was added to the R script to determine the age of the insertion by percent identity, the ouput was piped to a .txt file:
+> apptainer exec -C --bind "$WORKDIR" --bind "$COURSEDIR" --pwd "$PWD" "$COURSEDIR/containers/Annotation_analysis_R4.4.sif" Rscript --vanilla "$WORKDIR/scripts/03-full_length_LTRs_identity_copy.R" > clade_identity_summary.txt
 
 clade level, profile of which clade in my accession is more recent.
-Copia has many recent insertions, within there mostly Ale and ivana were very recent. 
-
-
-then a output/EDTA/assembly.fasta.mod.EDTA.final/ folder
-there the assembly.fasta.mod.EDTA.intact.fa
-
-EDTA/assembly.fasta.mod.EDTA.TEanno.gff3
-first entry, 9th column was it identified by homology? library sequence matched to the genome, or identified by structure, by the full length pipeline.
-also gives a classification.
-
+Copia has many recent insertions, within there mostly Ale and ivana were very recent. This can also be seen in the clade_identity_summary.txt
 
 ## 2. Visualizing and comparing TE annotations from EDTA  
 21.10.
@@ -259,11 +259,11 @@ That way, a landscape graph, showing TE divergence and abundance for each superf
 adjusted script with last command, into 08a, again interactive node, same as above:
 > srun --partition=pibu_el8 --cpus-per-task=2 --mem=4G --time=00:30:00 --pty bash
 > source ~/course_env.sh
-> apptainer exec -C --bind "$WORKDIR" --pwd "$WORKDIR" "$COURSEDIR/containers/Annotation_analysis_R4.4.sif" Rscript --vanilla "$WORKDIR/scripts/08-plot_div.R"
+> apptainer exec -C --bind "$WORKDIR" --pwd "$WORKDIR" "$COURSEDIR/containers/Annotation_analysis_R4.4.sif" Rscript --vanilla "$WORKDIR/scripts/08a-plot_div.R"
 
 Date the divergence of the annotated TEs from their representative sequence using the synonymous substitution rate for Brassicaceae species. This rate is estimated at 8.22 × 10^−9 substitutions per synonymous site per year (Kagale et al., 2014). The insertion time (T) can be calculated using T = K/2r, where K is the sequence divergence, and r is the substitution rate. For RepeatMasker comparisons, this calculation provides an approximate sequence divergence time. For intact LTR retrotransposons, the same formula can be used to estimate insertion age from the divergence between their two LTRs.
 
-
+The plots look similar with only the x-axis changed. In the TE_landscape_age.pdf the x-axis is "Estimated insertion age (Myr)". **Myr** means million years (so 1 Myr is 1,000,000 years).
 
 ### Guiding questions:
 - Which superfamilies show peaks at low and high sequence divergence?
