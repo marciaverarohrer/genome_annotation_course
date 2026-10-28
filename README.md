@@ -68,3 +68,4 @@ EDTA v2.3.0, TEsorter 1.3.0 (rexdb-plant), RepeatMasker (via EDTA), parseRM.pl, 
 ## Notes
 
 README.md organization, debugging and step_by_step.md organization and questions were edited with help of claude.ai
+The step_by_step.md is merely a more detailed documentation of the steps for future usage and to prepare for the presentation, exam and final report. 
