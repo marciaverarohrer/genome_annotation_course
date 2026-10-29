@@ -2,6 +2,7 @@
 This documentation is detailed in what steps were done,
 what commands were run to obtain answers to the guiding questions,
 or how specific information was extracted from the results.
+It relies heavily on the exercise scripts obtained in the lecture. 
 It should help prepare for the exam, presentation and results report.
 
 # Week 1 & Week 2: Transposable Element Annotation and Classification
@@ -640,6 +641,7 @@ JBrowse 2 is a free, open-source genome browser.
 > scp mrohrer@login8.hpc.binf.unibe.ch:/data/users/mrohrer/genome_annotation_course/data/assemblies/flye/assembly.fasta* .
 > scp mrohrer@login8.hpc.binf.unibe.ch:/data/users/mrohrer/genome_annotation_course/output/MAKER/final/filtered.genes.renamed.gff3 .
 > scp mrohrer@login8.hpc.binf.unibe.ch:/data/users/mrohrer/genome_annotation_course/output/EDTA/assembly.fasta.mod.EDTA.TEanno.gff3 .
+> scp mrohrer@login8.hpc.binf.unibe.ch:/data/users/mrohrer/genome_annotation_course/output/MAKER/final/*_iprscan_quality_filtered.gff .
 
 3. JBrowse 2 Desktop opened using a terminal:
 > chmod +x ~/Downloads/jbrowse-desktop*.AppImage
@@ -650,11 +652,50 @@ from the terminal. Open new genome, Selected assembly.fasta and followed the pro
 4. Open a Linear Genome View.
 
 ### 2.2: Add annotation tracks
-Use File → Open track… to load these files and select your genome assembly: MAKER genes: $FINALDIR/filtered.genes.renamed.gff3 (the smaller gene-only file is easier to load than the full evidence GFF) Quality-filtered annotation with InterProScan attributes and retained transcript/protein evidence alignments: $FINALDIR/${gff}_iprscan_quality_filtered.gff. EDTA TEs: the GFF3 in EDTA/*.EDTA.TEanno.gff3, the file from Weeks 1–2.
+Use File → Open track… to load the files copied above.
+The following three were added as a track, with default options: MAKER genes: filtered.genes.renamed.gff3, Quality-filtered annotation with InterProScan attributes and retained transcript/protein evidence alignments: assembly.all.maker.noseq.gff_iprscan_quality_filtered.gff
+. EDTA TEs: assembly.fasta.mod.EDTA.TEanno.gff3
+
 ### 2.3: Inspect gene models
-Display the gene and TE tracks together. Zoom in to inspect exons, introns, CDS features and transcript isoforms. Click a feature to see its ID and annotation. To jump to a region, enter coordinates such as scaffold_1:100000- 120000 in the location box.
+Gene and TE tracks were displayed together. Exons, introns, CDS features and transcript isoforms were inspected. To jump to a region, coordinates such as scaffold_1:100000- 120000 were entered in the location box.
+
 
 Guiding questions:
 - Do the genes have plausible exon and intron structures?
 - Are there alternative isoforms?
 - Are there genes that overlap TEs? How will you identify which gene models need manual curation
+
+To answer these questions the following regions were inspected:
+
+checking the 'weird' regions in the genome:
+| Signal | Why it is suspicious	| Your numbers |
+| ---------- | ---------- | ---------- |
+| AED > 0.5 and no Pfam domain | weak evidence and no known domain	| about 486 models |
+| Very short genes | 6 bp can’t encode a protein	shortest gene | 6 bp |
+| Very long genes | possibly several genes merged	longest | 199,883 bp |
+| Single-exon genes | often fragments or TE-derived	| 6,736 |
+| Overlapping genes | may be merged or duplicated	| 990 |
+| Gene lying on a TE | possible TE-derived false gene	| needs an overlap check |
+
+> awk -F'\t' 'NR==FNR{pf[$1]=1;next} $2>0.5 && !($1 in pf){print $1}' pfam_ids.txt mRNA_AED.tsv > curate_ids.txt
+> wc -l curate_ids.txt
+486 curated IDs
+
+> awk -F'\t' 'NR==FNR{ids[$1]=1;next} $3=="mRNA"{split($9,a,";"); id=substr(a[1],4); if(id in ids) print $1":"$4".."$5"\t"id}' curate_ids.txt filtered.genes.renamed.gff3 > curate_regions.tsv
+> head curate_regions.tsv
+shows the regions that can be inspected more in detail.
+Every candidate in this list has the two properties:
+- AED above 0.5, (weak agreement with the evidence)
+- no Pfam hit (no recognizable protein domain).
+
+> awk -F'\t' '{split($1,a,/[:.]+/); print $2"\t"$1"\t"(a[3]-a[2]+1)}' curate_regions.tsv | sort -k3,3nr > curate_by_length.tsv
+generates a .tsv with the lengths of the weird or to-be-curated models.
+They span from 199517 bp (Kar-10027192-RA	contig_157:506111..705627) to 21 bp (Kar-10009795-RA	contig_100:2533381..2533401).
+
+contig_157:97873..199893 :
+When loooking at these sequences often you can see that one gene from the annotation (top) matched with several different Arabidopsis proteins (AT2G08986.1, AT2G07981.1, AT1G40104.1, AT4G05612.1, AT1G38630.1, AT1G38790.1) over the same long stretch. 
+A 200 kb gene with many exons is a typical sign of merged models or a false prediction. Real Arabidopsis genes are almost never that long.
+an augustus_masked-...-abinit-gene-5.1 prediction spanning the whole window, with many tiny exons
+A single gene normally matches one protein family. Here many different proteins align over one region with large gaps. A long prediction with tiny exons and no RNA-seq support is usually a false or merged model. Possible explanations:
+- Augustus joined several protein-coding fragments, perhaps from different genes, into one model.
+- The region contains many scattered, degenerate copies of genes or gene fragments (like pseudogene cluster, an unannotated TE, or an organelle-derived insertion). Nuclear genomes often carry these inserts, and Flye assemblies sometimes include organelle contigs.
