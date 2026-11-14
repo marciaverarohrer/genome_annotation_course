@@ -165,7 +165,7 @@ contigs 230, 183, 126, 226, 97 for Gypsy.
 - Do Gypsy, Copia and TIR elements show similar genomic distributions, or are there distinct patterns?
 Very similar patterns only in contig 226 there is not, Gypsy shows distinctly higher density of elements.
 
-#TODO what does it mean?
+More detail in week 4, 3.2 additional work.
 
 computing N50 using this file:
 
@@ -264,7 +264,10 @@ interactive node, load the variables, then ran the script:
 > apptainer exec -C --bind "$WORKDIR" --pwd "$WORKDIR" "$COURSEDIR/containers/Annotation_analysis_R4.4.sif" Rscript --vanilla "$WORKDIR/scripts/08-plot_div.R"
 
 That way, a landscape graph, showing TE divergence and abundance for each superfamily was created.
+Questions from within the R script:
 
+Why is it important to have this plot in Mbp instead of counts?
+Counts treat a small fragment like a full-length element. Nested insertions and deletions break old TE copies into many small pieces, so the old, degraded families would look abundant in a count plot, even though they cover little sequence. The Mbp on the y-axis shows how much of the genome each divergence class occupies, which is what the landscape is supposed to show.
 
 ### 4.4 Dating TEs Using Substitution Rates:
 
@@ -1043,7 +1046,8 @@ pattern instead?
 Kar_1 is highly collinear with TAIR10 and with the other accessions. In the TAIR10 vs. Kar_1 syntenic dotplot each large contig maps as one continuous diagonal to a single TAIR10 chromosome, with no large translocations or internal inversions. Several contigs (contig_191, 167, 2, 118, 165, 211, 139, 189) run in the opposite direction; this reflects contig orientation in the Flye assembly, not inversions, and flipping them straightens the riparian braids. Each chromosome is covered by 2-5 contigs. One unusual connection is the small contigs, for example contig_126 on chr3 and contig_97 on chr5, which map to short stretches between larger contigs at positions where the centromeres are expected. This is more likely an assembly gap in repetitive centromeric sequence (few anchoring genes, TE-rich) than a true rearrangement, but this was not tested directly. Scaffold ordering in the plot, not the biology, explains the twisting of the braids.
 
 
-## 3. finishing the class table
+## 3. ADDITIONAL WORK
+### 3.1 finishing the class table
 
 to get Genes with Blast hits and Genes without Blast hits:
 
@@ -1066,4 +1070,27 @@ in ~/output/comparisons/GENESPACE/results run
 5 accessions: 20754 OGs, 24256 Kar_1 genes
 Kar_1 genes in any OG: 27211
 Kar_1 genes in no OG: 643
+
+### 3.2 add TIR track to circlized plot
+re-run script 04 and added all the most abundant TE superfamilies in one plot. Mutator is one of them (6,702 features, 2.61% of the genome, third by base pairs).
+
+added plot 2 to 04-annotation_circlize.R script and rerun on an interactive node:
+> srun --partition=pibu_el8 --cpus-per-task=2 --mem=4G --time=00:30:00 --pty bash
+> source ~/course_env.sh
+> apptainer exec -C --bind "$WORKDIR" --pwd "$WORKDIR" "$COURSEDIR/containers/Annotation_analysis_R4.4.sif" Rscript --vanilla scripts/04-annotation_circlize.R
+
+output in terminal turned into a table:
+Track	On the 20 contigs	Genome total	Share on the 20 contigs
+Gypsy	2,793	4,592	61%
+Copia	1,104	1,578	70%
+TIR (all)	5,811	9,681	60%
+Helitron	6,034	7,422	81%
+Genes	24,979	27,854	90%
+
+guiding questions:
+- Where are Gypsy and Copia densest?
+On small contigs (183, 230, 226, 215, 126, 97), with smaller peaks near the ends of some large contigs.
+- Do Gypsy, Copia and TIR share a distribution?
+Gypsy and Copia peak together on the same contigs. TIR is mostly low, with a few isolated hotspots, and helitrons are the most even, so there are distinct patterns.
+- Gene vs. TE density: they are opposite at the contig level. TE-rich small contigs have fewer genes, and the gene-rich large contigs have few Gypsy and Copia.
 
