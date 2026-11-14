@@ -63,8 +63,42 @@ draw(lgd, x = unit(8, "cm"), y = unit(10, "cm"), just = c("center"))
 
 dev.off()
 
-
 # Now plot all your most abundant TE superfamilies in one plot
+# ---- Plot 2: most abundant TE superfamilies + genes ----
+
+# genes from the filtered MAKER annotation
+genes_raw <- read.table("output/MAKER/final/filtered.genes.renamed.gff3", header = FALSE, sep = "\t", quote = "", comment.char = "#", stringsAsFactors = FALSE)
+
+# keep features whose type (column 3) matches a pattern, on the 20 plotted contigs
+filter_type <- function(data, pattern, ideogram) {
+  data %>%
+    filter(grepl(pattern, V3)) %>%
+    transmute(chrom = V1, start = V4, end = V5) %>%
+    filter(chrom %in% ideogram$chr)
+}
+
+tracks <- list(
+  list(name = "Gypsy",    data = filter_type(gff_data,  "^Gypsy_LTR_retrotransposon$", custom_ideogram), col = "darkgreen"),
+  list(name = "Copia",    data = filter_type(gff_data,  "^Copia_LTR_retrotransposon$", custom_ideogram), col = "darkred"),
+  list(name = "TIR",      data = filter_type(gff_data,  "_TIR_transposon$",             custom_ideogram), col = "darkorange"),
+  list(name = "Helitron", data = filter_type(gff_data,  "^helitron$",                   custom_ideogram), col = "purple"),
+  list(name = "Genes",    data = filter_type(genes_raw, "^gene$",                       custom_ideogram), col = "steelblue")
+)
+print(sapply(tracks, function(x) nrow(x$data)))   # features per track
+
+pdf("output/TE_density/TE_gene_density_plots.pdf", width = 10, height = 10)
+gaps <- c(rep(1, length(custom_ideogram$chr) - 1), 5)
+circos.par(start.degree = 90, gap.after = 1, track.margin = c(0, 0), gap.degree = gaps)
+circos.genomicInitialize(custom_ideogram)
+for (tr in tracks) {
+  circos.genomicDensity(tr$data, count_by = "number", col = tr$col, track.height = 0.07, window.size = 1e5)
+}
+circos.clear()
+
+lgd <- Legend(title = "Feature", at = sapply(tracks, `[[`, "name"), legend_gp = gpar(fill = sapply(tracks, `[[`, "col")))
+draw(lgd, x = unit(8, "cm"), y = unit(10, "cm"), just = c("center"))
+dev.off()
+
 
 # Plot the distribution of Athila and CRM clades (known centromeric TEs in Brassicaceae).
 # You need to run the TEsorter on TElib to get the clades classification from the TE library
