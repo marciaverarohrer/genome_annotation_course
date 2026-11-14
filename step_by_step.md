@@ -699,3 +699,371 @@ an augustus_masked-...-abinit-gene-5.1 prediction spanning the whole window, wit
 A single gene normally matches one protein family. Here many different proteins align over one region with large gaps. A long prediction with tiny exons and no RNA-seq support is usually a false or merged model. Possible explanations:
 - Augustus joined several protein-coding fragments, perhaps from different genes, into one model.
 - The region contains many scattered, degenerate copies of genes or gene fragments (like pseudogene cluster, an unannotated TE, or an organelle-derived insertion). Nuclear genomes often carry these inserts, and Flye assemblies sometimes include organelle contigs.
+
+
+# Week 4: 
+
+Overview of last chunk of work:
+
+Part	What it does	Your script
+1. BLASTp	Compares your proteins to UniProt and TAIR10, then adds putative functions	16-run_blastp.sh
+2. GENESPACE inputs	Builds five BED/FASTA pairs (yours, TAIR10, three accessions)	commands on the login node
+3. GENESPACE run	Orthology and synteny	17-genespace.R and 18-run_genespace.sh
+4. Pangenome analysis	Core, accessory and specific genes, copy numbers	19-process_pangenome.R (course script)
+5. Synteny plots	Dotplots and riparian plots	R code from the sheet
+
+## 1. Sequence homology to functionally validated proteins (UniProt
+database and TAIR10)
+
+### 1.1 run blastp
+created and ran script 16
+sbatch
+
+chagned reservation, added mail.
+
+run time: 12min49
+When the job finishes successfully, output/comparisons contains blastp_uniprot.tsv, blastp_TAIR10.tsv and their
+.besthits.tsv tables.
+
+
+#TODO once the job finishes:
+
+
+Add the UniProt functions to copies of your filtered protein and gene annotations:
+
+created script 19
+ran it: run time 
+failed , not clear why (error in pearl script?)
+
+
+By the end one should have the annotated GFF3 and FASTA files with putative functions from
+UniProt database, pfam domains, and GO terms. You will also have the best blast hit to Arabidopsis thaliana
+TAIR10 representative gene models.
+
+
+Guiding questions:
+- What proportion of proteins have a significant hit to well‑annotated proteins (with curated functions) vs.
+uncharacterized proteins?
+
+on interactive node the following commands were ran:
+cd "$WORKDIR/output/comparisons"
+PROT="$WORKDIR/output/MAKER/final/assembly.all.maker.proteins.fasta.renamed.filtered.fasta"
+UNIPROT="$COURSEDIR/data/uniprot_viridiplantae_reviewed.fa"
+
+> echo "total proteins: $(grep -c '>' $PROT)"
+total proteins: 30956
+> echo "UniProt hits:   $(wc -l < blastp_uniprot.besthits.tsv)"
+UniProt hits:   23235
+> echo "TAIR10 hits:    $(wc -l < blastp_TAIR10.besthits.tsv)"
+TAIR10 hits:    30378
+
+UniProt viridiplantae reviewed is a curated (Swiss-Prot) database, so a hit already means a protein with a curated function. To also count hits whose description says “uncharacterized”:
+> awk '/^>/{split($1,a,"|"); d=$0; sub(/^[^ ]+ /,"",d); sub(/ OS=.*/,"",d); print a[2]"\t"d}' "$UNIPROT" > uniprot_desc.tsv
+> awk -F'\t' 'NR==FNR{d[$1]=$2;next} {n++; if(tolower(d[$2])~/uncharacteri[sz]ed/) u++} END{print n" hits, "u+0" to uncharacterized proteins"}' uniprot_desc.tsv blastp_uniprot.besthits.tsv
+23235 hits, 555 to uncharacterized proteins
+
+
+| | Proteins | Share of 30,956 |
+|---|---|---|
+| UniProt hit (reviewed plant proteins, e-value ≤ 1e-5) | 23,235 | 75.1% |
+| of these: hit to an "uncharacterized" protein | 555 | 1.8% |
+| UniProt hit with a described function | 22,680 | 73.3% |
+| No UniProt hit | 7,721 | 24.9% |
+| TAIR10 hit (e-value ≤ 1e-5) | 30,378 | 98.1% |
+
+About 75% of the predicted proteins have a significant hit to a curated UniProt protein, and almost all of these (22,680) match proteins with a described function. Only 555 (1.8%) hit proteins annotated as uncharacterized. The TAIR10 share is higher (98.1%) because TAIR10 is the same species, whereas the reviewed UniProt set covers selected proteins from many plant species.
+
+
+- Are there length or completeness biases in proteins without UniProt hits (e.g., short fragments)?
+
+compares the two groups on mean length, the share of proteins under 100 aa, and the share starting with methionine (a rough completeness check). Higher short-protein shares, or fewer “M” starts, among the no-hit proteins would suggest fragments.
+
+> awk '/^>/{if(id)print id"\t"len"\t"m; id=substr($1,2); len=0; m=""; next} {if(m=="")m=substr($0,1,1); len+=length($0)} END{print id"\t"len"\t"m}' "$PROT" > prot_len.tsv
+> awk -F'\t' 'NR==FNR{h[$1]=1;next} {g=($1 in h)?"hit":"nohit"; n[g]++; s[g]+=$2; if($2<100)sh[g]++; if($3=="M")met[g]++} END{for(g in n) printf "%s\tn=%d\tmean_len=%.0f\tshare_<100aa=%.3f\tshare_start_M=%.3f\n", g, n[g], s[g]/n[g], sh[g]/n[g], met[g]/n[g]}' <(cut -f1 blastp_uniprot.besthits.tsv) prot_len.tsv
+hit     n=23235 mean_len=448    share_<100aa=0.048      share_start_M=0.977
+nohit   n=7721  mean_len=361    share_<100aa=0.249      share_start_M=0.961
+
+ | Proteins | Mean length (aa) | Share < 100 aa | Share starting with M |
+|---|---|---|---|---|
+| With UniProt hit | 23,235 | 448 | 4.8% | 97.7% |
+| Without UniProt hit | 7,721 | 361 | 24.9% | 96.1% |
+
+Proteins without a UniProt hit are shorter on average (361 vs. 448 aa), and about five times more of them are shorter than 100 aa (24.9% vs. 4.8%). This suggests that many of them are fragments, small ORFs or weak gene models. Short proteins also reach a significant e-value less easily, so part of the bias comes from detection power. The share of proteins starting with methionine is similar in both groups (96.1% vs. 97.7%), so there is no strong completeness bias by this measure.
+
+- Do you find the FLC gene (AT5G10140) in your annotation? What is its putative function that you can guess from GO terms and pfam domains (check the gff files from exercise Week 3)?
+
+> grep -P "AT5G10140" blastp_TAIR10.besthits.tsv
+Kar-10020806-RA AT5G10140.1     100.000 196     0       0       1       196     1       196     8.89e-142  392
+
+> gene=Kar-10020806
+> grep "^${gene}-R" blastp_TAIR10.besthits.tsv
+Kar-10020806-RA AT5G10140.1     100.000 196     0       0       1       196     1       196     8.89e-142  392
+
+will give TAIR10 best hit. shows AT5G10140 in column 2, with the identity and e-value. This confirms the gene is FLC!
+
+> grep "^${gene}-R" blastp_uniprot.besthits.tsv
+Kar-10020806-RA Q9S7Q7  100.000 196     0       0       1       196     1       196     1.28e-141       392
+
+will give UniProt best hit. It shows the best hit in the curated database, and the candidate is a protein from A.Thaliana:
+> grep -m1 "Q9S7Q7" "$COURSEDIR/data/uniprot_viridiplantae_reviewed.fa"
+sp|Q9S7Q7|FLC_ARATH MADS-box protein FLOWERING LOCUS C OS=Arabidopsis thaliana OX=3702 GN=FLC PE=1 SV=1
+
+> grep -P "\tgene\t" "$WORKDIR/output/MAKER/final/filtered.genes.renamed.gff3" | grep "ID=${gene};"
+contig_165      maker   gene    194066  200149  .       +       .       ID=Kar-10020806;Name=Kar-10020806;Alias=maker-contig_165-augustus-gene-2.74;Dbxref=InterPro:IPR002100,InterPro:IPR002487,Pfam:PF00319,Pfam:PF01486;Ontology_term=GO:0003677,GO:0003700,GO:0005634,GO:0006355,GO:0046983;
+
+Yes. FLC is annotated as gene `Kar-10020806` (`contig_165:194,066..200,149`, + strand). Its protein (`Kar-10020806-RA`) is identical to the TAIR10 FLC protein `AT5G10140.1` (100% identity over all 196 aa, e-value 8.9e-142), and its best UniProt hit is `Q9S7Q7` (100% identity, e-value 1.3e-141).
+
+| Evidence | Value |
+|---|---|
+| Pfam | PF00319 (SRF-type transcription factor, MADS-box), PF01486 (K-box) |
+| InterPro | IPR002100, IPR002487 |
+| GO terms | DNA binding (GO:0003677), DNA-binding transcription factor activity (GO:0003700), nucleus (GO:0005634), regulation of DNA-templated transcription (GO:0006355), protein dimerization activity (GO:0046983) |
+
+The domains and GO terms indicate a nuclear MADS-box transcription factor that binds DNA and acts as a dimer. FLC is known as a repressor of flowering that is silenced by vernalization. Close relatives (the MAF genes) share the same domains, so the domains alone do not identify FLC. The full-length, 100%-identical match to AT5G10140 does.
+---
+
+## 2. Comparative Genomics with OrthoFinder and GENESPACE
+
+
+### 2.1: Prepare inputs for five genomes
+
+following steps as not computationally heavy, were done on the login node.
+
+1. first ran all variables, create directories:
+
+bash
+COURSEDIR=/data/courses/genome_annotation_resources/2026
+WORKDIR=/data/users/mrohrer/genome_annotation_course
+Accession=Kar_1
+FINALDIR="$WORKDIR/output/MAKER/final"
+GENES="$FINALDIR/filtered.genes.renamed.gff3"
+LONGEST_PROTEINS="$FINALDIR/assembly.all.maker.proteins.fasta.renamed.longest.fasta"
+OUTDIR="$WORKDIR/output/comparisons"
+GENESPACE_DIR="$OUTDIR/GENESPACE"
+mkdir -p "$GENESPACE_DIR/bed" "$GENESPACE_DIR/peptide" "$GENESPACE_DIR/tmp"
+
+Accession=Kar_1 uses an underscore on purpose. Only the file names change; your gene IDs keep their hyphen (Kar-10027805).
+
+2. Your accession: BED and FASTA
+
+bash
+grep -P "\tgene\t" "$GENES" > "$GENESPACE_DIR/temp_genes.gff3"
+
+#Get the the first attribute in column 9 which is ID=gene_name.
+awk 'BEGIN{OFS="\t"} {split($9,a,";"); split(a[1],b,"="); print $1, $4-1, $5, b[2]}' "$GENESPACE_DIR/temp_genes.gff3" > "$GENESPACE_DIR/bed/${Accession}.bed"
+
+#Remove transcript suffixes and descriptions from FASTA headers.
+sed '/^>/s/ .*//' "$LONGEST_PROTEINS" | sed '/^>/s/-R[A-Z]*$//' > "$GENESPACE_DIR/peptide/${Accession}.fa"
+
+The BED has four columns: contig, 0-based start (GFF start minus 1), end, gene ID.
+The FASTA is the longest-isoform file, with the -RA suffix and descriptions removed from the headers. This is the file the instructor stressed. The headers then match the BED gene IDs.
+
+Quick check: both counts should be 27,854.
+
+bash
+wc -l "$GENESPACE_DIR/bed/${Accession}.bed"
+27854 /data/users/mrohrer/genome_annotation_course/output/comparisons/GENESPACE/bed/Kar_1.bed
+grep -c ">" "$GENESPACE_DIR/peptide/${Accession}.fa"
+27854
+head -n 2 "$GENESPACE_DIR/bed/${Accession}.bed"
+contig_174      0       15545   Kar-10027805
+contig_10       2       353     Kar-10027853
+
+grep ">" "$GENESPACE_DIR/peptide/${Accession}.fa" | head -n 2
+>Kar-10027805
+>Kar-10027853
+The first IDs in both files should be the same gene IDs, for example Kar-10027805.
+
+3. Add TAIR10
+Copy the BED and FASTA files from the course directory. The supplied TAIR10 FASTA already uses
+gene IDs and contains one protein per gene.
+bash
+cp "$COURSEDIR/data/TAIR10.bed" "$GENESPACE_DIR/bed/TAIR10.bed"
+cp "$COURSEDIR/data/TAIR10.fa" "$GENESPACE_DIR/peptide/TAIR10.fa"
+
+
+4. Add three other accessions
+
+First see which ones are available:
+
+bash
+ls "$COURSEDIR/data/Lian_et_al/GENESPACE/bed"
+
+Pick three. Skip your own accession. Then copy them, replacing the three names:
+
+bash
+for other in Etna_2 Ice_1 Taz_0; do cp "$COURSEDIR/data/Lian_et_al/GENESPACE/bed/${other}.bed" "$GENESPACE_DIR/bed/${other}.bed"; cp "$COURSEDIR/data/Lian_et_al/GENESPACE/peptide/${other}.fa" "$GENESPACE_DIR/peptide/${other}.fa"; done
+
+
+Altai-5 is from china, Kar-1 from Kyrgizstan, Etna-2 from Italy, Ice-1 from Iceland, Taz-0 from Morocco, Est-0 from Estonia.
+
+
+ls "$GENESPACE_DIR/bed" "$GENESPACE_DIR/peptide"
+/data/users/mrohrer/genome_annotation_course/output/comparisons/GENESPACE/bed:
+Etna_2.bed  Ice_1.bed  Kar_1.bed  TAIR10.bed  Taz_0.bed
+
+/data/users/mrohrer/genome_annotation_course/output/comparisons/GENESPACE/peptide:
+Etna_2.fa  Ice_1.fa  Kar_1.fa  TAIR10.fa  Taz_0.fa
+
+shows 
+
+5. Validate the IDs
+
+The sheet requires no duplicates and no differences between BED and FASTA IDs for every accession:
+
+bash
+cd "$GENESPACE_DIR"
+for f in bed/*.bed; do a=$(basename "$f" .bed); cut -f4 "$f" | sort > "$OUTDIR/tmp/$a.bed.ids"; grep ">" "peptide/$a.fa" | sed 's/>//; s/ .*//' | sort > "$OUTDIR/tmp/$a.fa.ids"; echo "$a bed_dup=$(uniq -d "$OUTDIR/tmp/$a.bed.ids" | wc -l) fa_dup=$(uniq -d "$OUTDIR/tmp/$a.fa.ids" | wc -l) only_bed=$(comm -23 "$OUTDIR/tmp/$a.bed.ids" "$OUTDIR/tmp/$a.fa.ids" | wc -l) only_fa=$(comm -13 "$OUTDIR/tmp/$a.bed.ids" "$OUTDIR/tmp/$a.fa.ids" | wc -l)"; done
+
+Etna_2 bed_dup=0 fa_dup=0 only_bed=0 only_fa=0
+Ice_1 bed_dup=0 fa_dup=0 only_bed=0 only_fa=0
+Kar_1 bed_dup=0 fa_dup=0 only_bed=0 only_fa=0
+TAIR10 bed_dup=0 fa_dup=0 only_bed=0 only_fa=0
+Taz_0 bed_dup=0 fa_dup=0 only_bed=0 only_fa=0
+
+ls bed peptide
+
+bed:
+Etna_2.bed  Ice_1.bed  Kar_1.bed  TAIR10.bed  Taz_0.bed
+
+peptide:
+Etna_2.fa  Ice_1.fa  Kar_1.fa  TAIR10.fa  Taz_0.fa
+
+Every line reads bed_dup=0 fa_dup=0 only_bed=0 only_fa=0, and ls should list five BED and five FASTA files with matching names. 
+
+### 2.2: Prepare GENESPACE in R
+
+created script 17
+
+### 2.3: Run GENESPACE
+
+created script 18
+
+sbatch script 18 (17 called from within)
+run time: 23min22s
+
+What to expect
+
+GENESPACE runs OrthoFinder (via DIAMOND) on the five proteomes, then builds the synteny blocks and the pan-gene table. Two hours should be enough for five small genomes, but check the log if it runs long.
+Your accession has 155 contigs, and many of them are small with few genes. GENESPACE needs at least five matching gene pairs for a block (the sheet says so), so small contigs won’t form synteny blocks. The riparian plots may show many short contigs for Kar_1, and the dotplots will have empty rows. That’s expected for a fragmented assembly, not an error.
+When it finishes, check the log with tail logs/genespace_*.err and ls output/comparisons/GENESPACE. You should see results/, pangenes/ (with TAIR10_pangenes.txt.gz) and pangenome_matrix.rds.
+
+### 2.4: Process your pangenome
+
+copy the script from the coursedirectory
+cp $COURSEDIR/scripts/XX-process_pangenome.R ./scripts/20-process_pangenome.R
+
+change wd and focal_genome variables on top of the script 20.
+
+created script 21:
+submit job
+sbatch scripts/21-run_process_pangenome.sh
+run time: 18s
+
+printed summary is now found in logs/process_pangenome_21013016.out
+
+plots are located here:
+> find . -name "pangenome*.pdf"
+./output/comparisons/GENESPACE/process_pangenome/plots/pangenome_presence_frequency.pdf
+
+manually copied to global plots folder WORKDIR/plots/
+
+**Guiding questions**
+- Report: Core and accession-specific entry counts
+
+### GENESPACE pan-genome (Kar_1, TAIR10, Etna_2, Ice_1, Taz_0)
+
+| Category | Entries | Share |
+|---|---|---|
+| Core | 23,877 | 71.7% |
+| Accessory | 6,990 | 21.0% |
+| Accession-specific | 2,441 | 7.3% |
+
+- **Does a core entry contain exactly one gene in every accession?**
+No. A core entry only requires at least one gene in each accession, so copy numbers can differ (tandem arrays, duplications, non-syntenic orthologs). 1,512 core entries differ in copy number when all recorded genes are counted.
+
+### 2.5: Compare copy-variable core entries
+
+The computational part of this chapter was already done in 2.4, as it was included in script 21.
+
+plot of pangenome_presence_frequency.pdf
+Copy-variable core entries
+
+The panels show different entries, so compare the pgID labels.
+
+The ranking is by Kar_1 copies, so Kar_1 is highest by design. Don’t read this as “Kar_1 has more copies than the others”. Your unique gene counts argue against that (Kar_1 has 27,555, which is lower than Etna_2 at 28,891 or Taz_0 at 28,099).
+Left panel (all recorded genes): the extreme entry is 8645, with 42 copies in Etna_2, 43 in Ice_1, 13 in Kar_1, 11 in Taz_0 and only 1 in TAIR10. That looks like a large, dispersed gene family. Many of these copies are probably non-syntenic orthologs, since they disappear in the right panel. It could also be TE-derived gene models. That is a guess, and you can check it by looking at the TAIR10 gene in that entry (the sheet suggests filtering pg by pgID).
+Right panel (syntenic + array genes): counts are much smaller. Kar_1 has 5 copies in entries 3762 and 22993, against 1 in most other accessions. For 22993, the left panel shows the same 5 vs. 1, which means all five Kar_1 copies are syntenic or in tandem. That is a candidate for a real tandem expansion in Kar_1, or an assembly artifact.
+
+Guiding questions
+
+- **How many Copy-variable core entries remain when only syntenic genes are counted?**
+589 (script counts PASS + array genes), about 61% fewer than with all recorded genes. Most copy-number differences therefore come from genes outside conserved positions.
+589 is for PASS plus tandem-array genes (checked with grep -n "PASS\|array" "$WORKDIR/scripts/20-process_pangenome.R").
+
+- **What evidence confirms that an extra copy is real?**
+Read depth across the copy is the same as for single-copy regions (not doubled or halved), HiFi reads span the copy together with unique flanking sequence, the copy is in a syntenic or at least plausible position, it diverges from the other copy (it is not identical), and it is supported by RNA-seq reads that map uniquely to it or by a second assembly of the same accession.
+
+- **How could haplotigs inflate gene copy counts?**
+If two haplotypes of a heterozygous region are assembled as separate contigs, both are annotated, which gives two nearly identical copies in one accession. Typical signs are copies with about 100% identity on short, non-syntenic contigs, and roughly half the expected read depth. Inbred Arabidopsis lines should have few haplotigs, but residual heterozygosity or misassembly can still create them.
+
+### 2.6: Visualize Synteny
+
+with GENESPACE dotplots were already generated in
+
+/data/users/mrohrer/genome_annotation_course/output/comparisons/GENESPACE/riparian
+and ""/dotplots
+
+in addition to these, another R and bash script was created
+
+touch scripts/22-riparian.R
+touch scripts/23-run_riparian.sh
+
+ran the script
+run time: 38s
+
+The PDFs land in output/comparisons/GENESPACE/processed_riparian/
+
+Tair10 vs Kar-1 syntenic hits:
+- No large contig links two TAIR10 chromosomes. Each big contig (contig_100, 171, 191, 167, 2, 118, 160...) is one continuous diagonal inside a single chromosome. So no misjoins and no large translocations are visible. The riparian plot agrees: every braid keeps its chromosome colour.
+- Slopes show orientation, not rearrangements. Contigs that run upward (contig_100, 171, 132, 104, 155, 160) are in the same orientation as TAIR10. Contigs that run downward (contig_191, 167, 2, 118, 165, 211, 139, 189) are inverted relative to it. Flye assembles each contig in an arbitrary direction, so this is expected, and it explains all the bow-ties in the riparian plot.
+- Each chromosome is split into several contigs, for example chr1 into contig_100, 104, 132, 171 and 155. The breaks between them are where there are no syntenic genes.
+
+Kar_1 vs. Kar_1 (the two plots)
+
+Use the first one (all BLAST hits, score > 50) for the report. Besides the main diagonal (each gene against itself), it shows a few short diagonal segments scattered off the diagonal. Those are duplicated regions inside your genome, in the range of the old duplications that Arabidopsis is known to retain, and there is no large block of duplicated sequence. The second plot (same orthogroup) is mostly empty, with some clusters in the rows and columns of small contigs. It adds little, but it hints that gene families may be concentrated on small contigs.
+
+
+Guiding questions:
+Do you see any major structural rearrangements between accessions? Choose one unusual connection. Could
+incorrect scaffold joins, missing or fragmented gene models, or scaffold ordering in the plot explain the
+pattern instead?
+
+
+Kar_1 is highly collinear with TAIR10 and with the other accessions. In the TAIR10 vs. Kar_1 syntenic dotplot each large contig maps as one continuous diagonal to a single TAIR10 chromosome, with no large translocations or internal inversions. Several contigs (contig_191, 167, 2, 118, 165, 211, 139, 189) run in the opposite direction; this reflects contig orientation in the Flye assembly, not inversions, and flipping them straightens the riparian braids. Each chromosome is covered by 2-5 contigs. One unusual connection is the small contigs, for example contig_126 on chr3 and contig_97 on chr5, which map to short stretches between larger contigs at positions where the centromeres are expected. This is more likely an assembly gap in repetitive centromeric sequence (few anchoring genes, TE-rich) than a true rearrangement, but this was not tested directly. Scaffold ordering in the plot, not the biology, explains the twisting of the braids.
+
+
+## 3. finishing the class table
+
+to get Genes with Blast hits and Genes without Blast hits:
+
+from ~/output/comparisons run
+> cut -f1 blastp_uniprot.besthits.tsv | sed -E 's/-R[A-Z]+$//' | sort -u | wc -l
+20923
+genes with at least one UniProt hit (transcript ID -> gene ID by removing -RA, -RB ...)
+
+genes without blast hit is the total number of filtered genes, so 27854 - 20923 and results in 6931.
+
+to get Genes in core Orthogroups and Genes in Accession specific orthogroups:
+
+in ~/output/comparisons/GENESPACE/results run
+> awk -F'\t' 'NR==1{for(i=1;i<=NF;i++)c[$i]=i; next} {n=0; for(i=2;i<=NF;i++) if($i!="") n++; k=$c["Kar_1"]; if(k=="") next; m=split(k,a,", "); if(n==5){core+=m; nc++} else if(n==1){spec+=m; ns++}} END{print "core OGs with Kar_1:", nc, "| Kar_1 genes in them:", core; print "Kar_1-specific OGs:", ns, "| Kar_1 genes in them:", spec}' Orthogroups.tsv
+
+> awk -F'\t' 'NR==1{for(i=1;i<=NF;i++)c[$i]=i;next} {k=$c["Kar_1"]; if(k=="")next; n=0; for(i=2;i<=NF;i++) if($i!="")n++; m=split(k,a,", "); g[n]+=m; o[n]++; t+=m} END{for(n in g) print n" accessions: "o[n]" OGs, "g[n]" Kar_1 genes"; print "Kar_1 genes in any OG: "t}' Orthogroups.tsv | sort
+2 accessions: 131 OGs, 442 Kar_1 genes
+3 accessions: 1191 OGs, 1382 Kar_1 genes
+4 accessions: 861 OGs, 1131 Kar_1 genes
+5 accessions: 20754 OGs, 24256 Kar_1 genes
+Kar_1 genes in any OG: 27211
+Kar_1 genes in no OG: 643
+
